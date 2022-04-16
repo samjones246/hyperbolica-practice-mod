@@ -19,6 +19,8 @@ namespace Hyperbolica_Practice_Mod
         int speedMult = 1;
         bool noclip = false;
         bool overlayInitialised = false;
+        GameObject pauseCanvas;
+        GameObject controlsObject;
         public override void OnApplicationStart()
         {
             playableScenes = new List<string>
@@ -47,13 +49,35 @@ namespace Hyperbolica_Practice_Mod
             baseSpeed = player.walkingSpeed;
         }
 
+        // Using the resume button of the pause menu as a base, return a container for text
+        public GameObject CreateTextObject(Transform parent, Font font)
+        {
+            LoggerInstance.Msg("Creating a text object...");
+            GameObject button = pauseCanvas.transform.Find("Resume").GetChild(0).gameObject;
+            GameObject textObject = GameObject.Instantiate(button);
+            textObject.GetComponent<Text>().font = font;
+            return textObject;
+        }
+
+        public bool IsPaused()
+        {
+            return pauseCanvas.activeSelf;
+        }
+
         public void InitOverlay()
         {
+            Font font = null;
+            foreach(Font f in Resources.FindObjectsOfTypeAll<Font>())
+            {
+                if (f.name == "RobotoMono-Medium")
+                {
+                    font = f;
+                    break;
+                }
+            }
             LoggerInstance.Msg("Initialising Overlay...");
             LoggerInstance.Msg("Creating canvas...");
             GameObject eventQueue = GameObject.Find("EventQueue");
-            GameObject pauseCanvas = null;
-            GameObject overlayObject = null;
             foreach(Transform child in eventQueue.GetComponentsInChildren<Transform>(true))
             {
                 if (child.name == "PauseCanvas")
@@ -67,19 +91,31 @@ namespace Hyperbolica_Practice_Mod
             goCanvas.name = "OverlayCanvas";
             goCanvas.GetComponent<Canvas>().renderMode = RenderMode.ScreenSpaceOverlay;
             goCanvas.SetActive(true);
-            for (int i=0;i<goCanvas.transform.childCount;i++)
+            for (int i = 0; i < goCanvas.transform.childCount; i++)
             {
                 Transform child = goCanvas.transform.GetChild(i);
-                if (child.name == "Resume")
-                {
-                    overlayObject = child.GetChild(0).gameObject;
-                    overlayObject.transform.parent = null;
-                }
                 LoggerInstance.Msg("Destroying " + child.name);
                 GameObject.Destroy(child.gameObject);
             }
-            LoggerInstance.Msg("Configuring Text Container...");
-            overlayObject.transform.parent = goCanvas.transform;
+
+            LoggerInstance.Msg("Adding controls info...");
+            controlsObject = CreateTextObject(goCanvas.transform, font);
+            controlsObject.transform.SetParent(goCanvas.transform);
+            RectTransform controlsRect = controlsObject.GetComponent<RectTransform>();
+            controlsRect.sizeDelta = new Vector2(Screen.currentResolution.width / 3, Screen.currentResolution.height / 3);
+            controlsRect.pivot = new Vector2(1, 0);
+            controlsRect.anchorMin = new Vector2(1, 0);
+            controlsRect.anchorMax = new Vector2(1, 0);
+            controlsRect.anchoredPosition = new Vector2(-15, 15);
+            Text controlsText = controlsObject.GetComponent<Text>();
+            controlsText.text = $"Level Select: 1 - {playableScenes.Count}\nDecrease Move Speed:     [\nIncrease Move Speed:     ]\nNoclip:     K";
+            controlsText.fontSize = 25;
+            controlsText.alignment = TextAnchor.LowerRight;
+
+
+            LoggerInstance.Msg("Creating dynamic overlay...");
+            GameObject overlayObject = CreateTextObject(goCanvas.transform, font);
+            overlayObject.transform.SetParent(goCanvas.transform);
             GameObject.Destroy(overlayObject.GetComponent<Button>());
             GameObject.Destroy(overlayObject.GetComponent<Image>());
             overlay = overlayObject.GetComponentInChildren<Text>();
@@ -91,7 +127,7 @@ namespace Hyperbolica_Practice_Mod
             component.anchorMax = new Vector2(0f, 1f);
             component.anchoredPosition = new Vector2(15f, -15f);
             overlay.text = "";
-            overlay.fontSize = 20;
+            overlay.fontSize = 30;
             overlayInitialised = true;
         }
 
@@ -99,8 +135,8 @@ namespace Hyperbolica_Practice_Mod
         {
             string newText = "";
             if (playableScenes.Contains(SceneManager.GetActiveScene().name)){
-                newText += $"Scene: {SceneManager.GetActiveScene().name}\n";
-                newText += $"Speed: {speedMult}x\n";
+                newText += $"Scene:  {SceneManager.GetActiveScene().name}\n";
+                newText += $"Speed:  {speedMult}x\n";
                 newText += $"Noclip: {(noclip ? "ON" : "OFF")}";
                 overlay.text = newText;
             }
@@ -108,6 +144,7 @@ namespace Hyperbolica_Practice_Mod
             {
                 overlay.text = "";
             }
+            controlsObject.SetActive(IsPaused());
         }
 
         public override void OnUpdate()
@@ -117,7 +154,6 @@ namespace Hyperbolica_Practice_Mod
             {
                 return;
             }
-
             for (int i = 0; i < playableScenes.Count; i++)
             {
                 if (Input.GetKeyDown((KeyCode)i + 49))
@@ -125,7 +161,6 @@ namespace Hyperbolica_Practice_Mod
                     SceneManager.LoadScene(playableScenes[i]);
                 }
             }
-
             if (Input.GetKeyDown(KeyCode.LeftBracket))
             {
                 speedMult = Mathf.Max(1, speedMult - 1);
