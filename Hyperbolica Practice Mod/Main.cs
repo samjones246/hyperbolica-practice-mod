@@ -169,14 +169,13 @@ namespace Hyperbolica_Practice_Mod
             {
                 speedMult++;
             }
-            player.walkingSpeed = baseSpeed * speedMult;
-
             if (Input.GetKeyDown(KeyCode.K))
             {
-                player.ignoreColliders = !player.ignoreColliders;
-                player.freeFly = !player.freeFly;
                 noclip = !noclip;
             }
+            player.walkingSpeed = baseSpeed * speedMult;
+            player.ignoreColliders = noclip;
+            player.freeFly = noclip;
         }
     }
 }
